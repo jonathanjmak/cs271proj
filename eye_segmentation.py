@@ -7,7 +7,7 @@ import datetime
 import numpy as np
 import skimage.io
 import matplotlib.pyplot as plt
-# from imgaug import augmenters as iaa
+from imgaug import augmenters as iaa
 
 
 
@@ -96,7 +96,6 @@ class EyeSegmentationNoResizeConfig(EyeSegmentationConfig):
 def train(model, dataset_train, dataset_val):
     """Train the model."""
 
-    """
     # Image augmentation
     # http://imgaug.readthedocs.io/en/latest/source/augmenters.html
     augmentation = iaa.SomeOf((0, 2), [
@@ -108,7 +107,6 @@ def train(model, dataset_train, dataset_val):
         iaa.Multiply((0.8, 1.5)),
         iaa.GaussianBlur(sigma=(0.0, 5.0))
     ])
-    """
     
     augmentation = []
 
@@ -120,14 +118,14 @@ def train(model, dataset_train, dataset_val):
     model.train(dataset_train, dataset_val,
                 learning_rate=model.config.LEARNING_RATE,
                 epochs=5,
-#                 augmentation=augmentation,
+                augmentation=augmentation,
                 layers='heads')
 
     print("Train all layers")
     model.train(dataset_train, dataset_val,
                 learning_rate=model.config.LEARNING_RATE,
                 epochs=20,
-#                 augmentation=augmentation,
+                augmentation=augmentation,
                 layers='all')
 
 def train_mrcnn(dataset_train, dataset_val, load_last=False):
