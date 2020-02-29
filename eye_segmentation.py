@@ -12,8 +12,10 @@ from imgaug import augmenters as iaa
 
 
 VAL_IMAGE_PATH = '/home/jjonathanmak/cs271proj/Semantic_Segmentation_Dataset/validation/images'
+TRAIN_IMAGE_PATH = '/home/jjonathanmak/cs271proj/Semantic_Segmentation_Dataset/train/images'
 
 VAL_IMAGE_IDS = sorted(os.listdir(VAL_IMAGE_PATH))
+TRAIN_IMAGE_IDS = sorted(os.listdir(TRAIN_IMAGE_PATH))
 
 COCO_WEIGHTS_PATH = "/home/jjonathanmak/cs271proj/mask_rcnn_coco.h5"
 
@@ -27,8 +29,12 @@ class EyeSegmentationConfig(utils.Config):
     NUM_CLASSES = 4  # pupil, iris, sclera, background
 
     # Number of training and validation steps per epoch
-    STEPS_PER_EPOCH = (657 - len(VAL_IMAGE_IDS)) // IMAGES_PER_GPU
+    STEPS_PER_EPOCH = max(1, len(TRAIN_IMAGE_IDS) // IMAGES_PER_GPU)
+    
+    print("STEPS PER EPOCH: ", STEPS_PER_EPOCH)
     VALIDATION_STEPS = max(1, len(VAL_IMAGE_IDS) // IMAGES_PER_GPU)
+    
+    print("VALIDATION STEPS: ", VALIDATION_STEPS)
 
     DETECTION_MIN_CONFIDENCE = 0.5
 
@@ -93,6 +99,77 @@ class EyeSegmentationInferenceConfig(EyeSegmentationConfig):
 class EyeSegmentationNoResizeConfig(EyeSegmentationConfig):
     IMAGE_RESIZE_MODE = "none"
 
+    
+    
+    
+    
+############################################################
+#  Dataset
+############################################################
+
+class EyeSegmentationDataset(utils.Dataset):
+
+    def load_eyes(self, dataset_dir):
+        """
+
+        dataset_dir: Root directory of the dataset
+      
+        """
+        # Add classes.
+        # pupil, iris, sclera, background
+        self.add_class("pupil", 1, "pupil")
+        self.add_class("iris", 2, "iris")
+        self.add_class("sclera", 3, "sclera")
+
+        # Which subset?
+        # "val": use hard-coded list above
+        # "train": use data from stage1_train minus the hard-coded list above
+        # else: use the data from the specified sub-directory
+        assert subset in ["train", "val", "stage1_train"]
+        subset_dir = "stage1_train" if subset in ["train", "val"] else subset
+        # dataset_dir = os.path.join(dataset_dir, subset_dir)
+        
+        # if dataset_dir not null:
+        if "images" in dataset_dir:
+            image_ids = next(os.walk(dataset_dir))[2]
+
+        # Add images
+        for image_id in image_ids:
+            self.add_image(
+                "eye",
+                image_id=image_id,
+                path=dataset_dir+image_id)
+
+    def load_mask(self, image_id):
+        """Generate instance masks for an image.
+       Returns:
+        masks: A bool array of shape [height, width, instance count] with
+            one mask per instance.
+        class_ids: a 1D array of class IDs of the instance masks.
+        """
+        # Get mask directory from image path
+        mask_dir = os.path.join(os.path.dirname(os.path.dirname(info['path'])), "masks")
+
+        # Read mask files from .png image
+        mask = []
+        for f in next(os.walk(mask_dir))[2]:
+            if f.endswith(".png"):
+                m = skimage.io.imread(os.path.join(mask_dir, f)).astype(np.bool)
+                mask.append(m)
+        mask = np.stack(mask, axis=-1)
+        # Return mask, and array of class IDs of each instance. Since we have
+        # one class ID, we return an array of ones
+        return mask, np.ones([mask.shape[-1]], dtype=np.int32)
+
+    def image_reference(self, image_id):
+        """Return the path of the image."""
+        info = self.image_info[image_id]
+        if info["source"] == "eye":
+            return info["id"]
+        else:
+            super(self.__class__, self).image_reference(image_id)
+    
+    
 def train(model, dataset_train, dataset_val):
     """Train the model."""
 
