@@ -11,13 +11,13 @@ from imgaug import augmenters as iaa
 
 
 
-VAL_IMAGE_PATH = '/home/naproxa/cs271proj/Semantic_Segmentation_Dataset/validation/images/'
-TRAIN_IMAGE_PATH = '/home/naproxa/cs271proj/Semantic_Segmentation_Dataset/train/images/'
+VAL_IMAGE_PATH = '/home/jjonathanmak/cs271proj/Semantic_Segmentation_Dataset/validation/images/'
+TRAIN_IMAGE_PATH = '/home/jjonathanmak/cs271proj/Semantic_Segmentation_Dataset/train/images/'
 
 VAL_IMAGE_IDS = sorted(os.listdir(VAL_IMAGE_PATH))
 TRAIN_IMAGE_IDS = sorted(os.listdir(TRAIN_IMAGE_PATH))
 
-COCO_WEIGHTS_PATH = "/home/naproxa/cs271proj/mask_rcnn_coco.h5"
+COCO_WEIGHTS_PATH = "/home/jjonathanmak/cs271proj/mask_rcnn_coco.h5"
 
 class EyeSegmentationConfig(utils.Config):
     """Configuration for training on the OpenEDS segmentation dataset."""
@@ -137,7 +137,7 @@ class EyeSegmentationDataset(utils.Dataset):
         for image_id in image_ids:
             self.add_image(
                 "eye",
-                image_id=image_id,
+                image_id=image_id[:image_id.index('.')],
                 path=dataset_dir+image_id)
 
     def load_mask(self, image_id):
@@ -149,12 +149,13 @@ class EyeSegmentationDataset(utils.Dataset):
         """
         # Get mask directory from image path
         # mask_dir = os.path.join(os.path.dirname(os.path.dirname(info['path'])), "labels")
-        print(image_id)
-        mask_dir = os.path.dirname(image_id).replace("images","labels") # this doesn't work since image_id here (declared probably in mask_rcnn.py) is different than image_id we declared above in the load_eyes
+        mask_dir = os.path.dirname(str(image_id)).replace("images","labels") # this doesn't work since image_id here (declared probably in mask_rcnn.py) is different than image_id we declared above in the load_eyes
+        print(mask_dir)
 
         # Read mask files
         mask = []
-        for f in next(os.walk(mask_dir))[2]:
+        mask_ids = next(os.walk(mask_dir))[2]
+        for f in mask_ids:
             if f.endswith(".py"):
                 m = os.path.join(mask_dir, f).astype(np.bool)
                 mask.append(m)
