@@ -11,13 +11,13 @@ from imgaug import augmenters as iaa
 
 
 
-VAL_IMAGE_PATH = '/home/jjonathanmak/cs271proj/Semantic_Segmentation_Dataset/validation/images'
-TRAIN_IMAGE_PATH = '/home/jjonathanmak/cs271proj/Semantic_Segmentation_Dataset/train/images'
+VAL_IMAGE_PATH = '/home/naproxa/cs271proj/Semantic_Segmentation_Dataset/validation/images/'
+TRAIN_IMAGE_PATH = '/home/naproxa/cs271proj/Semantic_Segmentation_Dataset/train/images/'
 
 VAL_IMAGE_IDS = sorted(os.listdir(VAL_IMAGE_PATH))
 TRAIN_IMAGE_IDS = sorted(os.listdir(TRAIN_IMAGE_PATH))
 
-COCO_WEIGHTS_PATH = "/home/jjonathanmak/cs271proj/mask_rcnn_coco.h5"
+COCO_WEIGHTS_PATH = "/home/naproxa/cs271proj/mask_rcnn_coco.h5"
 
 class EyeSegmentationConfig(utils.Config):
     """Configuration for training on the OpenEDS segmentation dataset."""
@@ -125,8 +125,8 @@ class EyeSegmentationDataset(utils.Dataset):
         # "val": use hard-coded list above
         # "train": use data from stage1_train minus the hard-coded list above
         # else: use the data from the specified sub-directory
-        assert subset in ["train", "val", "stage1_train"]
-        subset_dir = "stage1_train" if subset in ["train", "val"] else subset
+        # assert subset in ["train", "val", "stage1_train"]
+        # subset_dir = "stage1_train" if subset in ["train", "val"] else subset
         # dataset_dir = os.path.join(dataset_dir, subset_dir)
         
         # if dataset_dir not null:
@@ -148,18 +148,20 @@ class EyeSegmentationDataset(utils.Dataset):
         class_ids: a 1D array of class IDs of the instance masks.
         """
         # Get mask directory from image path
-        mask_dir = os.path.join(os.path.dirname(os.path.dirname(info['path'])), "masks")
+        # mask_dir = os.path.join(os.path.dirname(os.path.dirname(info['path'])), "labels")
+        print(image_id)
+        mask_dir = os.path.dirname(image_id).replace("images","labels") # this doesn't work since image_id here (declared probably in mask_rcnn.py) is different than image_id we declared above in the load_eyes
 
-        # Read mask files from .png image
+        # Read mask files
         mask = []
         for f in next(os.walk(mask_dir))[2]:
-            if f.endswith(".png"):
-                m = skimage.io.imread(os.path.join(mask_dir, f)).astype(np.bool)
+            if f.endswith(".py"):
+                m = os.path.join(mask_dir, f).astype(np.bool)
                 mask.append(m)
         mask = np.stack(mask, axis=-1)
         # Return mask, and array of class IDs of each instance. Since we have
         # one class ID, we return an array of ones
-        return mask, np.ones([mask.shape[-1]], dtype=np.int32)
+        return mask, np.ones([mask.shape[-1]], dtype=np.int32) # need to change since we have multi-class, but can't test this yet
 
     def image_reference(self, image_id):
         """Return the path of the image."""
@@ -170,8 +172,17 @@ class EyeSegmentationDataset(utils.Dataset):
             super(self.__class__, self).image_reference(image_id)
     
     
-def train(model, dataset_train, dataset_val):
+def train(model):
     """Train the model."""
+    # Training dataset.
+    dataset_train = EyeSegmentationDataset()
+    dataset_train.load_eyes(TRAIN_IMAGE_PATH)
+    dataset_train.prepare()
+
+    # Validation dataset
+    dataset_val = EyeSegmentationDataset()
+    dataset_val.load_eyes(VAL_IMAGE_PATH)
+    dataset_val.prepare()
 
     # Image augmentation
     # http://imgaug.readthedocs.io/en/latest/source/augmenters.html
@@ -205,7 +216,7 @@ def train(model, dataset_train, dataset_val):
                 augmentation=augmentation,
                 layers='all')
 
-def train_mrcnn(dataset_train, dataset_val, load_last=False):
+def train_mrcnn(load_last=False):
     """Train Mask R-CNN Model on nuclei segmentation dataset."""
 
     # Create model
@@ -232,10 +243,10 @@ def train_mrcnn(dataset_train, dataset_val, load_last=False):
             "mrcnn_bbox", "mrcnn_mask"])
 
     # Train
-    train(model, dataset_train, dataset_val)
+    train(model)
 
     # Inference
-    config = NucleusInferenceConfig()
+    config = EyeSegmentationInferenceConfig()
     model = modellib.MaskRCNN(mode="inference", config=config, model_dir='logs')
     weights_path = model.find_last()
     model.load_weights(weights_path, by_name=True)
