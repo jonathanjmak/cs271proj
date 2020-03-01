@@ -23,7 +23,9 @@ class EyeSegmentationConfig(utils.Config):
     """Configuration for training on the OpenEDS segmentation dataset."""
     NAME = "eye_segmentation"
 
-    IMAGES_PER_GPU = 8
+    IMAGES_PER_GPU = 3
+    
+    BATCH_SIZE = 3
 
     # Number of classes (including background)
     NUM_CLASSES = 4  # pupil, iris, sclera, background
@@ -44,7 +46,7 @@ class EyeSegmentationConfig(utils.Config):
 
     # Input image resizing
     # Random crops of size 512x512
-    IMAGE_RESIZE_MODE = "crop"
+    IMAGE_RESIZE_MODE = "none"
     IMAGE_MIN_DIM = 128
     # IMAGE_MAX_DIM = 512
     # IMAGE_MIN_SCALE = 2.0
@@ -98,10 +100,7 @@ class EyeSegmentationInferenceConfig(EyeSegmentationConfig):
 # image resizing so we see the real sizes here
 class EyeSegmentationNoResizeConfig(EyeSegmentationConfig):
     IMAGE_RESIZE_MODE = "none"
-
-    
-    
-    
+   
     
 ############################################################
 #  Dataset
@@ -117,9 +116,9 @@ class EyeSegmentationDataset(utils.Dataset):
         """
         # Add classes.
         # pupil, iris, sclera, background
-        self.add_class("pupil", 1, "pupil")
-        self.add_class("iris", 2, "iris")
-        self.add_class("sclera", 3, "sclera")
+        self.add_class("eye", 1, "pupil")
+        self.add_class("eye", 2, "iris")
+        self.add_class("eye", 3, "sclera")
 
         # Which subset?
         # "val": use hard-coded list above
@@ -130,15 +129,19 @@ class EyeSegmentationDataset(utils.Dataset):
         # dataset_dir = os.path.join(dataset_dir, subset_dir)
         
         # if dataset_dir not null:
-        if "images" in dataset_dir:
+        if ".png" not in dataset_dir:
             image_ids = next(os.walk(dataset_dir))[2]
+        else:
+            image_ids = [dataset_dir]
 
         # Add images
         for image_id in image_ids:
+            class_ids = np.arange(len(self.class_info))
             self.add_image(
                 "eye",
                 image_id=image_id[:image_id.index('.')],
-                path=dataset_dir+image_id)
+                path=dataset_dir+image_id,
+                class_ids=class_ids)
 
     def load_mask(self, image_id):
         """Generate instance masks for an image.
@@ -148,21 +151,18 @@ class EyeSegmentationDataset(utils.Dataset):
         class_ids: a 1D array of class IDs of the instance masks.
         """
         # Get mask directory from image path
-        # mask_dir = os.path.join(os.path.dirname(os.path.dirname(info['path'])), "labels")
-        mask_dir = os.path.dirname(str(image_id)).replace("images","labels") # this doesn't work since image_id here (declared probably in mask_rcnn.py) is different than image_id we declared above in the load_eyes
-        print(mask_dir)
+        info = self.image_info[image_id]
+        image_path = info["path"]
+        mask_dir = image_path.replace("images", "labels")
+        mask_dir = mask_dir.replace("png", "npy")
 
         # Read mask files
-        mask = []
-        mask_ids = next(os.walk(mask_dir))[2]
-        for f in mask_ids:
-            if f.endswith(".py"):
-                m = os.path.join(mask_dir, f).astype(np.bool)
-                mask.append(m)
-        mask = np.stack(mask, axis=-1)
-        # Return mask, and array of class IDs of each instance. Since we have
-        # one class ID, we return an array of ones
-        return mask, np.ones([mask.shape[-1]], dtype=np.int32) # need to change since we have multi-class, but can't test this yet
+        mask = np.load(mask_dir)
+        class_ids = info['class_ids']
+        class_ids = np.array(class_ids, dtype=np.int32)
+        
+        # Return mask, and array of class IDs of each instance. 
+        return mask, class_ids 
 
     def image_reference(self, image_id):
         """Return the path of the image."""
