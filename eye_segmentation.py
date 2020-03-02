@@ -11,22 +11,22 @@ from imgaug import augmenters as iaa
 
 
 
-VAL_IMAGE_PATH = '/home/naproxa/cs271proj/Semantic_Segmentation_Dataset/validation/images/'
-TRAIN_IMAGE_PATH = '/home/naproxa/cs271proj/Semantic_Segmentation_Dataset/train/images/'
+VAL_IMAGE_PATH = '/home/jjonathanmak/cs271proj/Semantic_Segmentation_Dataset/validation/images/'
+TRAIN_IMAGE_PATH = '/home/jjonathanmak/cs271proj/Semantic_Segmentation_Dataset/train/images/'
 
 VAL_IMAGE_IDS = sorted(os.listdir(VAL_IMAGE_PATH))
 TRAIN_IMAGE_IDS = sorted(os.listdir(TRAIN_IMAGE_PATH))
 
-COCO_WEIGHTS_PATH = "/home/naproxa/cs271proj/mask_rcnn_coco.h5"
+COCO_WEIGHTS_PATH = "/home/jjonathanmak/cs271proj/mask_rcnn_coco.h5"
 
 class EyeSegmentationConfig(utils.Config):
     """Configuration for training on the OpenEDS segmentation dataset."""
     NAME = "eye_segmentation"
 
-    IMAGES_PER_GPU = 1
+    IMAGES_PER_GPU = 3
     
-    BATCH_SIZE = 1
-
+    BATCH_SIZE = 3
+    
     # Number of classes (including background)
     NUM_CLASSES = 4  # pupil, iris, sclera, background
 
@@ -81,10 +81,10 @@ class EyeSegmentationConfig(utils.Config):
     TRAIN_ROIS_PER_IMAGE = 128
 
     # Maximum number of ground truth instances to use in one image
-    MAX_GT_INSTANCES = 200
+    MAX_GT_INSTANCES = 216
 
     # Max number of final detections per image
-    DETECTION_MAX_INSTANCES = 400
+    DETECTION_MAX_INSTANCES = 396
 
 class EyeSegmentationInferenceConfig(EyeSegmentationConfig):
     # Set batch size to 1 to run one image at a time
@@ -159,7 +159,8 @@ class EyeSegmentationDataset(utils.Dataset):
         # Read mask files
         mask = np.load(mask_dir)
         class_ids = info['class_ids']
-        class_ids = np.array(class_ids, dtype=np.int32)
+        class_ids = class_ids.astype(np.int32)
+#         class_ids = np.array(class_ids, dtype=np.int32)
         
         # Return mask, and array of class IDs of each instance. 
         return mask, class_ids 

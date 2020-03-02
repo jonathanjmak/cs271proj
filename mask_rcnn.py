@@ -1205,23 +1205,27 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None,
 #     image_path = dataset.image_info[image_id]["path"]
     image = dataset.load_image(image_id)
     mask, class_ids = dataset.load_mask(image_id)
+    print("Class IDs", class_ids)
     original_shape = image.shape
+    print("Original Shape: ", original_shape)
     image, window, scale, padding, crop = utils.resize_image(
         image,
         min_dim=config.IMAGE_MIN_DIM,
         min_scale=config.IMAGE_MIN_SCALE,
         max_dim=config.IMAGE_MAX_DIM,
         mode=config.IMAGE_RESIZE_MODE)
+    print("New Image shape: ", image.shape)
+    print("Mask Shape: ", mask.shape)
     # no need to resize mask
 #     mask = utils.resize_mask(mask, scale, padding, crop)
 
-    # Random horizontal flips.
-    # TODO: will be removed in a future update in favor of augmentation
-    if augment:
-        logging.warning("'augment' is deprecated. Use 'augmentation' instead.")
-        if random.randint(0, 1):
-            image = np.fliplr(image)
-            mask = np.fliplr(mask)
+#     # Random horizontal flips.
+#     # TODO: will be removed in a future update in favor of augmentation
+#     if augment:
+#         logging.warning("'augment' is deprecated. Use 'augmentation' instead.")
+#         if random.randint(0, 1):
+#             image = np.fliplr(image)
+#             mask = np.fliplr(mask)
 
     # Augmentation
     # This requires the imgaug lib (https://github.com/aleju/imgaug)
@@ -1258,7 +1262,8 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None,
     # and here is to filter them out
     _idx = np.sum(mask, axis=(0, 1)) > 0
     mask = mask[:, :, _idx]
-    class_ids = class_ids[_idx]
+#     class_ids = class_ids[_idx]
+    print("another filter: ", class_ids)
     # Bounding boxes. Note that some boxes might be all zeros
     # if the corresponding mask got cropped out.
     # bbox: [num_instances, (y1, x1, y2, x2)]
@@ -1754,19 +1759,22 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                             (batch_size,) + mrcnn_mask.shape, dtype=mrcnn_mask.dtype)
 
             # If more instances than fits in the array, sub-sample from them.
+            print("before: ", gt_class_ids)
             if gt_boxes.shape[0] > config.MAX_GT_INSTANCES:
+                print("in here")
                 ids = np.random.choice(
                     np.arange(gt_boxes.shape[0]), config.MAX_GT_INSTANCES, replace=False)
                 gt_class_ids = gt_class_ids[ids]
                 gt_boxes = gt_boxes[ids]
                 gt_masks = gt_masks[:, :, ids]
+            print("after: ", gt_class_ids)
             
             # Add to batch
             batch_image_meta[b] = image_meta
             batch_rpn_match[b] = rpn_match[:, np.newaxis]
             batch_rpn_bbox[b] = rpn_bbox
             batch_images[b] = mold_image(image.astype(np.float32), config)
-            batch_gt_class_ids[b, :gt_class_ids.shape[1]] = gt_class_ids
+            batch_gt_class_ids[b, :gt_class_ids.shape[0]] = gt_class_ids
             batch_gt_boxes[b, :gt_boxes.shape[0]] = gt_boxes
             batch_gt_masks[b, :, :, :gt_masks.shape[-1]] = gt_masks
             if random_rois:
@@ -1777,6 +1785,21 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                     batch_mrcnn_bbox[b] = mrcnn_bbox
                     batch_mrcnn_mask[b] = mrcnn_mask
             b += 1
+#             batch_image_meta[b] = image_meta
+#             batch_rpn_match[b] = rpn_match[:, np.newaxis]
+#             batch_rpn_bbox[b] = rpn_bbox
+#             batch_images[b] = mold_image(image.astype(np.float32), config)
+#             batch_gt_class_ids[b, :gt_class_ids.shape[1]] = gt_class_ids
+#             batch_gt_boxes[b, :gt_boxes.shape[0]] = gt_boxes
+#             batch_gt_masks[b, :, :, :gt_masks.shape[-1]] = gt_masks
+#             if random_rois:
+#                 batch_rpn_rois[b] = rpn_rois
+#                 if detection_targets:
+#                     batch_rois[b] = rois
+#                     batch_mrcnn_class_ids[b] = mrcnn_class_ids
+#                     batch_mrcnn_bbox[b] = mrcnn_bbox
+#                     batch_mrcnn_mask[b] = mrcnn_mask
+#             b += 1
 
             # Batch full?
             if b >= batch_size:
@@ -1897,6 +1920,7 @@ class MaskRCNN():
                                              stage5=True, train_bn=config.TRAIN_BN)
         # Top-down Layers
         # TODO: add assert to verify feature map sizes match what's in config
+        print("top down pyramid size: ", config.TOP_DOWN_PYRAMID_SIZE)
         P5 = KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (1, 1), name='fpn_c5p5')(C5)
         P4 = KL.Add(name="fpn_p4add")([
             KL.UpSampling2D(size=(2, 2), name="fpn_p5upsampled")(P5),
