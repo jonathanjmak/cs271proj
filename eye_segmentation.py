@@ -11,21 +11,21 @@ from imgaug import augmenters as iaa
 
 
 
-VAL_IMAGE_PATH = '/home/jjonathanmak/cs271proj/Semantic_Segmentation_Dataset/validation/images/'
-TRAIN_IMAGE_PATH = '/home/jjonathanmak/cs271proj/Semantic_Segmentation_Dataset/train/images/'
+VAL_IMAGE_PATH = '/home/naproxa/cs271proj/Semantic_Segmentation_Dataset/validation/images/'
+TRAIN_IMAGE_PATH = '/home/naproxa/cs271proj/Semantic_Segmentation_Dataset/train/images/'
 
 VAL_IMAGE_IDS = sorted(os.listdir(VAL_IMAGE_PATH))
 TRAIN_IMAGE_IDS = sorted(os.listdir(TRAIN_IMAGE_PATH))
 
-COCO_WEIGHTS_PATH = "/home/jjonathanmak/cs271proj/mask_rcnn_coco.h5"
+COCO_WEIGHTS_PATH = "/home/naproxa/cs271proj/mask_rcnn_coco.h5"
 
 class EyeSegmentationConfig(utils.Config):
     """Configuration for training on the OpenEDS segmentation dataset."""
     NAME = "eye_segmentation"
 
-    IMAGES_PER_GPU = 3
+    IMAGES_PER_GPU = 1
     
-    BATCH_SIZE = 3
+    BATCH_SIZE = 1
 
     # Number of classes (including background)
     NUM_CLASSES = 4  # pupil, iris, sclera, background
